@@ -17,6 +17,15 @@ type FSSTopCategory struct {
 	List []string `bson:"list"`
 }
 
+func (c *FSSTopCategory) IsContained(category string) bool {
+	for _, v := range c.List {
+		if v == category {
+			return true
+		}
+	}
+	return false
+}
+
 type FSTopStats struct {
 	Id       string `bson:"id"`
 	Title    string `bson:"title"`

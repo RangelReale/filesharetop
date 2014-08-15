@@ -81,6 +81,8 @@ func (i *Importer) Import(fetcher fstoplib.Fetcher) error {
 
 func (i *Importer) Consolidate(hours int) error {
 	c := i.Session.DB(i.Database).C("history")
+	c.EnsureIndexKey("date", "hour")
+
 	ccons := i.Session.DB(i.Database).C("current")
 
 	dtlim := time.Now().UTC().Add(-1 * (time.Hour * time.Duration(hours)))
