@@ -12,16 +12,18 @@ import (
 )
 
 type Importer struct {
-	logger   *log.Logger
-	Session  *mgo.Session
-	Database string
+	logger          *log.Logger
+	Session         *mgo.Session
+	Database        string
+	ScoreCalculator ScoreCalculator
 }
 
 func NewImporter(logger *log.Logger, session *mgo.Session) *Importer {
 	return &Importer{
-		logger:   logger,
-		Session:  session,
-		Database: "filesharetop",
+		logger:          logger,
+		Session:         session,
+		Database:        "filesharetop",
+		ScoreCalculator: &DefaultScoreCalculator{},
 	}
 }
 
@@ -61,7 +63,7 @@ func (i *Importer) Consolidate(hours int) error {
 
 	dtlim := time.Now().UTC().Add(-1 * (time.Hour * time.Duration(hours)))
 
-	i.logger.Printf("Start date: %s\n", dtlim.Format("2006-01-02"))
+	//i.logger.Printf("Start date: %s\n", dtlim.Format("2006-01-02"))
 
 	iter := c.Find(bson.M{
 		"$or": []bson.M{
@@ -79,7 +81,7 @@ func (i *Importer) Consolidate(hours int) error {
 
 	cttotal := int32(0)
 	for iter.Next(&rec) {
-		//fmt.Printf("%s - %s\n", rec.Date, rec.Hour)
+		//i.logger.Printf("%s - %s\n", rec.Date, rec.Hour)
 		cttotal++
 
 		for _, pi := range rec.List {
@@ -97,35 +99,10 @@ func (i *Importer) Consolidate(hours int) error {
 			}
 
 			if item.Last != nil {
-				//fmt.Printf("%s - [%d] [%d] [%d]\n", item.Title, pi.Seeders-item.Last.Seeders,
+				//i.logger.Printf("%s - [%d] [%d] [%d]\n", item.Title, pi.Seeders-item.Last.Seeders,
 				//pi.Leechers-item.Last.Leechers, pi.Complete-item.Last.Complete)
 
-				seeders := int32(pi.Seeders - item.Last.Seeders)
-				leechers := int32(pi.Leechers - item.Last.Leechers)
-				complete := int32(pi.Complete - item.Last.Complete)
-				comments := int32(pi.Comments - item.Last.Comments)
-
-				if seeders >= 0 {
-					item.Score += seeders * 5
-				} else {
-					item.Score += seeders * 2
-				}
-
-				if leechers >= 0 {
-					item.Score += leechers * 3
-				} else {
-					item.Score += leechers * 1
-				}
-
-				if complete >= 0 {
-					item.Score += complete * 3
-				} else {
-					item.Score += complete * 1
-				}
-
-				if comments > 0 {
-					item.Score += comments * 10
-				}
+				item.Score += i.ScoreCalculator.CalcScore(rec.Date, rec.Hour, pi, item.Last)
 			}
 			item.Count++
 			item.Last = pi
@@ -135,6 +112,7 @@ func (i *Importer) Consolidate(hours int) error {
 		return err
 	}
 
+	// drop "current" collection
 	err := ccons.DropCollection()
 	/*
 		if err != nil {
@@ -142,6 +120,7 @@ func (i *Importer) Consolidate(hours int) error {
 		}
 	*/
 
+	// insert items in current collection
 	for _, ii := range items {
 		err = ccons.Insert(ii)
 		if err != nil {
