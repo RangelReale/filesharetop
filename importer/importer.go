@@ -45,6 +45,7 @@ func (i *Importer) Import(fetcher fstoplib.Fetcher) error {
 	}
 
 	c := i.Session.DB(i.Database).C("history")
+	ccat := i.Session.DB(i.Database).C("category")
 
 	_, err = c.Upsert(bson.M{
 		"date": rec.Date,
@@ -52,6 +53,27 @@ func (i *Importer) Import(fetcher fstoplib.Fetcher) error {
 	}, rec)
 	if err != nil {
 		return err
+	}
+
+	// import categories
+	_, err = ccat.RemoveAll(nil)
+	if err != nil {
+		return err
+	}
+
+	fcat, err := fetcher.CategoryMap()
+	if err != nil {
+		return err
+	}
+
+	for ch, ci := range *fcat {
+		err = ccat.Insert(&FSSTopCategory{
+			ID:   ch,
+			List: ci,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -108,17 +130,17 @@ func (i *Importer) Consolidate(hours int) error {
 			item.Last = pi
 		}
 	}
+
+	var err error
 	if err := iter.Close(); err != nil {
 		return err
 	}
 
-	// drop "current" collection
-	err := ccons.DropCollection()
-	/*
-		if err != nil {
-			return err
-		}
-	*/
+	// clear "current" collection
+	_, err = ccons.RemoveAll(nil)
+	if err != nil {
+		return err
+	}
 
 	// insert items in current collection
 	for _, ii := range items {

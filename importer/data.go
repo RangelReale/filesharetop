@@ -12,6 +12,11 @@ type FSTopRecord struct {
 	List       map[string]*fstoplib.Item `bson:"list"`
 }
 
+type FSSTopCategory struct {
+	ID   string   `bson:"id"`
+	List []string `bson:"list"`
+}
+
 type FSTopStats struct {
 	Id       string `bson:"id"`
 	Title    string `bson:"title"`
