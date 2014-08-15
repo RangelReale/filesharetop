@@ -132,7 +132,7 @@ func (i *Importer) Consolidate(hours int) error {
 	}
 
 	var err error
-	if err := iter.Close(); err != nil {
+	if err = iter.Close(); err != nil {
 		return err
 	}
 

@@ -25,7 +25,7 @@ type FSTopStats struct {
 	Count    int32  `bson:"count"`
 	Score    int32  `bson:"score"`
 
-	Last *fstoplib.Item `bson:"-"`
+	Last *fstoplib.Item `bson:"last"`
 }
 
 type FSTopStatsSorted []*FSTopStats

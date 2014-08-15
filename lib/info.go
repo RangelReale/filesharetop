@@ -1,24 +1,24 @@
 package fstoplib
 
 type Item struct {
-	Id    string
-	Title string
+	Id    string `bson:"id"`
+	Title string `bson:"title"`
 	// Complete link including host
-	Link     string
-	Category string
+	Link     string `bson:"link"`
+	Category string `bson:"category"`
 	// YYYY-MM-DD
-	AddDate string
+	AddDate string `bson:"adddate"`
 	// Amount of times found
-	Count int32
+	Count int32 `bson:"count"`
 
 	// The following values should be -1 if not available
-	Seeders     int32
-	SeedersPos  int32
-	Leechers    int32
-	LeechersPos int32
-	Complete    int32
-	CompletePos int32
-	Comments    int32
+	Seeders     int32 `bson:"seeders"`
+	SeedersPos  int32 `bson:"seederspos"`
+	Leechers    int32 `bson:"leechers"`
+	LeechersPos int32 `bson:"leecherspos"`
+	Complete    int32 `bson:"complete"`
+	CompletePos int32 `bson:"completepos"`
+	Comments    int32 `bson:"comments"`
 }
 
 type CategoryMap map[string][]string
