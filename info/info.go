@@ -1,12 +1,14 @@
 package fstopinfo
 
 import (
-	//"fmt"
 	"errors"
+	"fmt"
 	"github.com/RangelReale/filesharetop/importer"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"log"
+	"strconv"
+	"time"
 )
 
 type Info struct {
@@ -72,5 +74,49 @@ func (i *Info) TopCategory(category string) ([]*fstopimp.FSTopStats, error) {
 	if err = iter.Close(); err != nil {
 		return nil, err
 	}
+	return items, nil
+}
+
+func (i *Info) History(id string, hours int) ([]*FSInfoHistory, error) {
+	c := i.Session.DB(i.Database).C("history")
+	c.EnsureIndexKey("date", "hour")
+
+	dtlim := time.Now().UTC().Add(-1 * (time.Hour * time.Duration(hours)))
+
+	iter := c.Find(bson.M{
+		"$or": []bson.M{
+			{
+				"date": bson.M{"$gte": dtlim.Format("2006-01-02")},
+				"hour": bson.M{"$gte": strconv.Itoa(dtlim.Hour())},
+			},
+			{
+				"date": bson.M{"$gt": dtlim.Format("2006-01-02")},
+			},
+		}}).Select(bson.M{"date": 1, "hour": 1, "import_time": 1, fmt.Sprintf("list.%s", id): 1}).Sort("date", "hour").Iter()
+
+	items := make([]*FSInfoHistory, 0)
+	found := false
+	var rec fstopimp.FSTopRecord
+	for iter.Next(&rec) {
+		ni := &FSInfoHistory{
+			Date:       rec.Date,
+			Hour:       rec.Hour,
+			ImportTime: rec.ImportTime,
+		}
+		if ri, ok := rec.List[id]; ok {
+			ni.Item = ri
+			found = true
+		}
+		items = append(items, ni)
+	}
+	var err error
+	if err = iter.Close(); err != nil {
+		return nil, err
+	}
+
+	if !found {
+		return nil, nil
+	}
+
 	return items, nil
 }
