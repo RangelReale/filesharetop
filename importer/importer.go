@@ -1,7 +1,7 @@
 package fstopimp
 
 import (
-	//"fmt"
+	"fmt"
 	"github.com/RangelReale/filesharetop/lib"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -16,6 +16,14 @@ type Importer struct {
 	Session         *mgo.Session
 	Database        string
 	ScoreCalculator ScoreCalculator
+}
+
+func BuildCurrentCollectionName(id string) string {
+	cconsname := "current"
+	if id != "" {
+		cconsname = fmt.Sprintf("%s_%s", cconsname, id)
+	}
+	return cconsname
 }
 
 func NewImporter(logger *log.Logger, session *mgo.Session) *Importer {
@@ -79,11 +87,11 @@ func (i *Importer) Import(fetcher fstoplib.Fetcher) error {
 	return nil
 }
 
-func (i *Importer) Consolidate(hours int) error {
+func (i *Importer) Consolidate(id string, hours int) error {
 	c := i.Session.DB(i.Database).C("history")
 	c.EnsureIndexKey("date", "hour")
 
-	ccons := i.Session.DB(i.Database).C("current")
+	ccons := i.Session.DB(i.Database).C(BuildCurrentCollectionName(id))
 
 	dtlim := time.Now().UTC().Add(-1 * (time.Hour * time.Duration(hours)))
 

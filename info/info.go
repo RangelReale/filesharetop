@@ -25,8 +25,8 @@ func NewInfo(logger *log.Logger, session *mgo.Session) *Info {
 	}
 }
 
-func (i *Info) Top() ([]*fstopimp.FSTopStats, error) {
-	ccons := i.Session.DB(i.Database).C("current")
+func (i *Info) Top(id string) ([]*fstopimp.FSTopStats, error) {
+	ccons := i.Session.DB(i.Database).C(fstopimp.BuildCurrentCollectionName(id))
 	ccons.EnsureIndexKey("-score")
 
 	items := make([]*fstopimp.FSTopStats, 0)
@@ -45,7 +45,7 @@ func (i *Info) Top() ([]*fstopimp.FSTopStats, error) {
 	return items, nil
 }
 
-func (i *Info) TopCategory(category string) ([]*fstopimp.FSTopStats, error) {
+func (i *Info) TopCategory(id string, category string) ([]*fstopimp.FSTopStats, error) {
 	ccat := i.Session.DB(i.Database).C("category")
 	ccat.EnsureIndexKey("id")
 
@@ -57,7 +57,7 @@ func (i *Info) TopCategory(category string) ([]*fstopimp.FSTopStats, error) {
 		return nil, err
 	}
 
-	ccons := i.Session.DB(i.Database).C("current")
+	ccons := i.Session.DB(i.Database).C(fstopimp.BuildCurrentCollectionName(id))
 	ccons.EnsureIndexKey("-score")
 
 	items := make([]*fstopimp.FSTopStats, 0)
