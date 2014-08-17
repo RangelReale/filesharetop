@@ -17,6 +17,10 @@ func LoadTemplates(names ...string) *template.Template {
 }
 
 func FormatAddDate(date string) string {
+	if date == "" {
+		return date
+	}
+
 	ad, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		return date
