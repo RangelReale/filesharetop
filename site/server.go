@@ -234,7 +234,7 @@ func RunServer(config *Config) {
 				if last != nil {
 					c_seeders = append(c_seeders, struct{ X, Y float64 }{float64(cttotal), float64(ii.Item.Seeders)})
 					c_leechers = append(c_leechers, struct{ X, Y float64 }{float64(cttotal), float64(ii.Item.Leechers)})
-					c_complete = append(c_complete, struct{ X, Y float64 }{float64(cttotal), float64(ii.Item.Complete)})
+					c_complete = append(c_complete, struct{ X, Y float64 }{float64(cttotal), float64(ii.Item.Complete - last.Complete)})
 					c_comments = append(c_comments, struct{ X, Y float64 }{float64(cttotal), float64(ii.Item.Comments)})
 				}
 
@@ -264,17 +264,15 @@ func RunServer(config *Config) {
 		p.Add(pl_leechers)
 		p.Legend.Add("Leechers", pl_leechers)
 
-		/*
-			pl_complete, err := plotter.NewLine(c_complete)
-			if err != nil {
-				http.Error(w, err.Error(), 500)
-				return
-			}
-			pl_complete.LineStyle.Width = vg.Length(1)
-			pl_complete.LineStyle.Color = color.RGBA{B: 255, A: 255}
-			p.Add(pl_complete)
-			p.Legend.Add("Complete", pl_complete)
-		*/
+		pl_complete, err := plotter.NewLine(c_complete)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		pl_complete.LineStyle.Width = vg.Length(1)
+		pl_complete.LineStyle.Color = color.RGBA{B: 255, A: 255}
+		p.Add(pl_complete)
+		p.Legend.Add("Complete@", pl_complete)
 
 		pl_comments, err := plotter.NewLine(c_comments)
 		if err != nil {
