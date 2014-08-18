@@ -37,17 +37,30 @@ type FSTopStats struct {
 	Last *fstoplib.Item `bson:"last"`
 }
 
-type FSTopStatsSorted []*FSTopStats
+type FSTopStatsList []*FSTopStats
 
-func (d FSTopStatsSorted) Len() int {
-	return len(d)
+func (l FSTopStatsList) Paged(page int, pagesize int) FSTopStatsList {
+	ret := make(FSTopStatsList, 0, pagesize)
+	if page < 1 {
+		page = 1
+	}
+	start := (page - 1) * pagesize
+	end := page * pagesize
+
+	for i := start; i < end; i++ {
+		if i > len(l)-1 {
+			break
+		}
+		ret = append(ret, l[i])
+	}
+
+	return ret
 }
 
-func (d FSTopStatsSorted) Swap(i, j int) {
-	d[i], d[j] = d[j], d[i]
-}
-
-// Inverted to sort in descent order
-func (d FSTopStatsSorted) Less(i, j int) bool {
-	return d[i].Score > d[j].Score
+func (l FSTopStatsList) PageCount(pagesize int) int {
+	ret := len(l) / pagesize
+	if len(l)%pagesize != 0 {
+		ret++
+	}
+	return ret
 }

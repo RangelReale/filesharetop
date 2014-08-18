@@ -25,11 +25,11 @@ func NewInfo(logger *log.Logger, session *mgo.Session) *Info {
 	}
 }
 
-func (i *Info) Top(id string) ([]*fstopimp.FSTopStats, error) {
+func (i *Info) Top(id string) (fstopimp.FSTopStatsList, error) {
 	ccons := i.Session.DB(i.Database).C(fstopimp.BuildCurrentCollectionName(id))
 	ccons.EnsureIndexKey("-score")
 
-	items := make([]*fstopimp.FSTopStats, 0)
+	items := make(fstopimp.FSTopStatsList, 0)
 
 	iter := ccons.Find(nil).Sort("-score").Iter()
 	var stats fstopimp.FSTopStats
@@ -45,7 +45,7 @@ func (i *Info) Top(id string) ([]*fstopimp.FSTopStats, error) {
 	return items, nil
 }
 
-func (i *Info) TopCategory(id string, category string) ([]*fstopimp.FSTopStats, error) {
+func (i *Info) TopCategory(id string, category string) (fstopimp.FSTopStatsList, error) {
 	ccat := i.Session.DB(i.Database).C("category")
 	ccat.EnsureIndexKey("id")
 
@@ -58,18 +58,20 @@ func (i *Info) TopCategory(id string, category string) ([]*fstopimp.FSTopStats, 
 	}
 
 	ccons := i.Session.DB(i.Database).C(fstopimp.BuildCurrentCollectionName(id))
-	ccons.EnsureIndexKey("-score")
+	ccons.EnsureIndexKey("category", "-score")
 
-	items := make([]*fstopimp.FSTopStats, 0)
+	items := make(fstopimp.FSTopStatsList, 0)
 
-	iter := ccons.Find(nil).Sort("-score").Iter()
+	iter := ccons.Find(bson.M{
+		"category": bson.M{
+			"$in": catinfo.List,
+		},
+	}).Sort("-score").Iter()
 	var stats fstopimp.FSTopStats
 
 	for iter.Next(&stats) {
-		if catinfo.IsContained(stats.Category) {
-			s := stats
-			items = append(items, &s)
-		}
+		s := stats
+		items = append(items, &s)
 	}
 	if err = iter.Close(); err != nil {
 		return nil, err

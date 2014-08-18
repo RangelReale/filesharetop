@@ -46,14 +46,15 @@ table.main td
 	word-break: break-all;
 }
 
-div.categories
+div.categories, div.paging
 {
 	width: 400px;
 	margin: 0 auto 20px;
 	text-align: center;
 }
 
-div.categories > a
+div.categories > a, div.paging > a, div.paging > div
 {
 	padding: 4px 16px;
+	display: inline-block;
 }

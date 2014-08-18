@@ -15,7 +15,9 @@ import (
 	"image/color"
 	"mime"
 	"net/http"
+	"net/url"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -51,7 +53,18 @@ func RunServer(config *Config) {
 		return true
 	}
 
+	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Not found", 404)
+	})
+	http.HandleFunc("/favicon.png", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Not found", 404)
+	})
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		//config.Logger.Printf("Connection: %s\n", r.URL.String())
+
+		var err error
+
 		r.ParseForm()
 
 		if !initialCheck(w, r) {
@@ -63,13 +76,25 @@ func RunServer(config *Config) {
 
 		cat := r.Form.Get("category")
 		chart := r.Form.Get("chart")
+		p_page := r.Form.Get("pg")
+		page := 1
+		if p_page != "" {
+			t_page, err := strconv.ParseInt(p_page, 10, 32)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			page = int(t_page)
+		}
+		if page < 1 {
+			page = 1
+		}
 
 		i := fstopinfo.NewInfo(config.Logger, csession)
 		i.Database = config.Database
 
 		// load categories
 		var c fstopinfo.FSCategoryList
-		var err error
 
 		catcache, catfound := categoryCache.Get("category")
 		if catfound {
@@ -93,13 +118,12 @@ func RunServer(config *Config) {
 		}
 
 		// load home
-		var d []*fstopimp.FSTopStats
+		var d fstopimp.FSTopStatsList
 
 		var dcache interface{}
 		var dfound bool
 		var dname string
 		if cat == "" {
-			dcache, dfound = homeCache.Get("index")
 			dname = "index"
 		} else {
 			// check if category exists
@@ -107,11 +131,11 @@ func RunServer(config *Config) {
 				http.Error(w, "Category not found", 404)
 				return
 			}
-			dcache, dfound = homeCache.Get(cat)
 			dname = cat
 		}
+		dcache, dfound = homeCache.Get(dname)
 		if dfound {
-			d = dcache.([]*fstopimp.FSTopStats)
+			d = dcache.(fstopimp.FSTopStatsList)
 		}
 
 		// data not on cache, load
@@ -125,14 +149,20 @@ func RunServer(config *Config) {
 				http.Error(w, err.Error(), 500)
 				return
 			}
-			homeCache.Set(dname, d, 0)
+			if len(d) > 0 {
+				homeCache.Set(dname, d, 0)
+			}
 		}
+
+		pagecount := d.PageCount(config.PageSize)
+		d = d.Paged(page, config.PageSize)
 
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 
 		var body *bytes.Buffer = new(bytes.Buffer)
 
 		fmt.Fprintln(body, "<div class=\"categories\">")
+		fmt.Fprintf(body, "<a href=\"/\">ALL</a>\n")
 		for _, lc := range c {
 			fmt.Fprintf(body, "<a href=\"/?category=%s\">%s</a>\n", lc, lc)
 		}
@@ -159,6 +189,43 @@ func RunServer(config *Config) {
 			}
 		}
 		fmt.Fprintln(body, "</table>")
+
+		fmt.Fprintln(body, "<div class=\"paging\">")
+		if page > 1 {
+			params := url.Values{}
+			params.Add("pg", "1")
+			if cat != "" {
+				params.Add("category", cat)
+			}
+			fmt.Fprintf(body, "<a href=\"/?%s\">First</a>\n", params.Encode())
+		}
+		if page > 1 {
+			params := url.Values{}
+			params.Add("pg", strconv.Itoa(page-1))
+			if cat != "" {
+				params.Add("category", cat)
+			}
+			fmt.Fprintf(body, "<a href=\"/?%s\">Previous</a>\n", params.Encode())
+		}
+		fmt.Fprintf(body, "<div>Page %d</div>\n", page)
+
+		if len(d) > 0 && page < pagecount {
+			params := url.Values{}
+			params.Add("pg", strconv.Itoa(page+1))
+			if cat != "" {
+				params.Add("category", cat)
+			}
+			fmt.Fprintf(body, "<a href=\"/?%s\">Next</a>\n", params.Encode())
+		}
+		if page != pagecount {
+			params := url.Values{}
+			params.Add("pg", strconv.Itoa(pagecount))
+			if cat != "" {
+				params.Add("category", cat)
+			}
+			fmt.Fprintf(body, "<a href=\"/?%s\">Last</a>\n", params.Encode())
+		}
+		fmt.Fprintln(body, "</div>")
 
 		tmpl := LoadTemplates("index")
 		tmpldata := map[string]interface{}{

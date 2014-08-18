@@ -13,6 +13,7 @@ type Config struct {
 	Database    string
 	TopId       string
 	HistoryDays int
+	PageSize    int
 }
 
 func NewConfig(port int) *Config {
@@ -20,5 +21,6 @@ func NewConfig(port int) *Config {
 		Port:        port,
 		Database:    "filesharetop",
 		HistoryDays: 168,
+		PageSize:    30,
 	}
 }
