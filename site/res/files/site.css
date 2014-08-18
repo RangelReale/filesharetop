@@ -44,3 +44,15 @@ table.main td
 {
 	background: none repeat scroll 0 0 #ecedf3;
 }
+
+div.categories
+{
+	width: 400px;
+	margin: 0 auto 20px;
+	text-align: center;
+}
+
+div.categories > a
+{
+	padding: 4px 16px;
+}

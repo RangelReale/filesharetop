@@ -10,12 +10,14 @@ import (
 	"github.com/RangelReale/filesharetop/importer"
 	"github.com/RangelReale/filesharetop/info"
 	"github.com/RangelReale/filesharetop/lib"
+	"github.com/pmylund/go-cache"
 	"html/template"
 	"image/color"
 	"mime"
 	"net/http"
 	"path"
 	"strings"
+	"time"
 )
 
 func RunServer(config *Config) {
@@ -32,11 +34,32 @@ func RunServer(config *Config) {
 		}
 	}
 
+	// create memory caches
+	homeCache := cache.New(10*time.Minute, 5*time.Minute)
+	categoryCache := cache.New(30*time.Minute, 30*time.Minute)
+	detailCache := cache.New(15*time.Minute, 10*time.Minute)
+
+	initialCheck := func(w http.ResponseWriter, r *http.Request) bool {
+		// clear cache if requested
+		nocache := r.Form.Get("nocache")
+		if nocache == "1" {
+			homeCache.Flush()
+			categoryCache.Flush()
+			detailCache.Flush()
+		}
+
+		return true
+	}
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+
+		if !initialCheck(w, r) {
+			return
+		}
+
 		csession := config.Session.Clone()
 		defer csession.Close()
-
-		r.ParseForm()
 
 		cat := r.Form.Get("category")
 		chart := r.Form.Get("chart")
@@ -44,22 +67,76 @@ func RunServer(config *Config) {
 		i := fstopinfo.NewInfo(config.Logger, csession)
 		i.Database = config.Database
 
-		var d []*fstopimp.FSTopStats
+		// load categories
+		var c fstopinfo.FSCategoryList
 		var err error
 
-		if cat == "" {
-			d, err = i.Top(config.TopId)
-		} else {
-			d, err = i.TopCategory(config.TopId, cat)
+		catcache, catfound := categoryCache.Get("category")
+		if catfound {
+			c = catcache.(fstopinfo.FSCategoryList)
 		}
-		if err != nil {
-			http.Error(w, err.Error(), 500)
+
+		if c == nil {
+			c, err = i.Categories()
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			if c != nil {
+				categoryCache.Set("category", c, 0)
+			}
+		}
+
+		if c == nil {
+			http.Error(w, "Could not load categories", 500)
 			return
+		}
+
+		// load home
+		var d []*fstopimp.FSTopStats
+
+		var dcache interface{}
+		var dfound bool
+		var dname string
+		if cat == "" {
+			dcache, dfound = homeCache.Get("index")
+			dname = "index"
+		} else {
+			// check if category exists
+			if !c.Exists(cat) {
+				http.Error(w, "Category not found", 404)
+				return
+			}
+			dcache, dfound = homeCache.Get(cat)
+			dname = cat
+		}
+		if dfound {
+			d = dcache.([]*fstopimp.FSTopStats)
+		}
+
+		// data not on cache, load
+		if d == nil {
+			if cat == "" {
+				d, err = i.Top(config.TopId)
+			} else {
+				d, err = i.TopCategory(config.TopId, cat)
+			}
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			homeCache.Set(dname, d, 0)
 		}
 
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 
 		var body *bytes.Buffer = new(bytes.Buffer)
+
+		fmt.Fprintln(body, "<div class=\"categories\">")
+		for _, lc := range c {
+			fmt.Fprintf(body, "<a href=\"/?category=%s\">%s</a>\n", lc, lc)
+		}
+		fmt.Fprintln(body, "</div>")
 
 		fmt.Fprintln(body, "<table class=\"main\">")
 
@@ -71,7 +148,7 @@ func RunServer(config *Config) {
 				"<td align=\"right\">%d</td><td align=\"center\">%d</td><td align=\"center\">%d</td>\n",
 				ii.Link, ii.Title, ii.Id, ii.Id, FormatAddDate(ii.Last.AddDate), ii.Score, ii.Count, ii.Last.Comments)
 
-			if chart == "2" {
+			if chart == "" {
 				fmt.Fprintf(body, "<td><img src=\"/chart?id=%s&size=short\"></td>", ii.Id)
 			}
 
@@ -97,10 +174,14 @@ func RunServer(config *Config) {
 	})
 
 	http.HandleFunc("/view", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+
+		if !initialCheck(w, r) {
+			return
+		}
+
 		csession := config.Session.Clone()
 		defer csession.Close()
-
-		r.ParseForm()
 
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 
@@ -113,10 +194,23 @@ func RunServer(config *Config) {
 		i := fstopinfo.NewInfo(config.Logger, csession)
 		i.Database = config.Database
 
-		d, err := i.History(id, config.HistoryDays)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
+		var d []*fstopinfo.FSInfoHistory
+		var err error
+
+		dcache, found := detailCache.Get(id)
+		if found {
+			d = dcache.([]*fstopinfo.FSInfoHistory)
+		}
+
+		if d == nil {
+			d, err = i.History(id, config.HistoryDays)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			if d != nil {
+				detailCache.Set(id, d, 0)
+			}
 		}
 
 		if d == nil {
@@ -176,10 +270,14 @@ func RunServer(config *Config) {
 	})
 
 	http.HandleFunc("/chart", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+
+		if !initialCheck(w, r) {
+			return
+		}
+
 		csession := config.Session.Clone()
 		defer csession.Close()
-
-		r.ParseForm()
 
 		id := r.Form.Get("id")
 		if id == "" {
@@ -192,10 +290,24 @@ func RunServer(config *Config) {
 		i := fstopinfo.NewInfo(config.Logger, csession)
 		i.Database = config.Database
 
-		d, err := i.History(id, config.HistoryDays)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
+		var d []*fstopinfo.FSInfoHistory
+		var err error
+
+		dcache, found := detailCache.Get(id)
+		if found {
+			d = dcache.([]*fstopinfo.FSInfoHistory)
+		}
+
+		if d == nil {
+			d, err = i.History(id, config.HistoryDays)
+			if err != nil {
+				w.Header().Add("Content-Type", "text/html; charset=utf-8")
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			if d != nil {
+				detailCache.Set(id, d, 0)
+			}
 		}
 
 		if d == nil {
@@ -272,7 +384,7 @@ func RunServer(config *Config) {
 		pl_complete.LineStyle.Width = vg.Length(1)
 		pl_complete.LineStyle.Color = color.RGBA{B: 255, A: 255}
 		p.Add(pl_complete)
-		p.Legend.Add("Complete@", pl_complete)
+		p.Legend.Add("@Complete", pl_complete)
 
 		pl_comments, err := plotter.NewLine(c_comments)
 		if err != nil {

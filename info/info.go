@@ -120,3 +120,21 @@ func (i *Info) History(id string, hours int) ([]*FSInfoHistory, error) {
 
 	return items, nil
 }
+
+func (i *Info) Categories() (FSCategoryList, error) {
+	c := i.Session.DB(i.Database).C("category")
+	c.EnsureIndexKey("id")
+
+	iter := c.Find(nil).Select(bson.M{"id": 1}).Sort("id").Iter()
+
+	items := make(FSCategoryList, 0)
+	var rec fstopimp.FSSTopCategory
+	for iter.Next(&rec) {
+		items = append(items, rec.ID)
+	}
+	var err error
+	if err = iter.Close(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
