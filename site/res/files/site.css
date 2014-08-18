@@ -43,6 +43,7 @@ table.main
 table.main td
 {
 	background: none repeat scroll 0 0 #ecedf3;
+	word-break: break-all;
 }
 
 div.categories
