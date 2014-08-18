@@ -161,12 +161,11 @@ func RunServer(config *Config) {
 
 		var body *bytes.Buffer = new(bytes.Buffer)
 
-		fmt.Fprintln(body, "<div class=\"categories\">")
-		fmt.Fprintf(body, "<a href=\"/\">ALL</a>\n")
-		for _, lc := range c {
-			fmt.Fprintf(body, "<a href=\"/?category=%s\">%s</a>\n", lc, lc)
+		tmpldata := map[string]interface{}{
+			"Title":      config.Title,
+			"page":       page,
+			"categories": c,
 		}
-		fmt.Fprintln(body, "</div>")
 
 		fmt.Fprintln(body, "<table class=\"main\">")
 
@@ -179,7 +178,8 @@ func RunServer(config *Config) {
 				ii.Link, ii.Title, ii.Id, ii.Id, FormatAddDate(ii.Last.AddDate), ii.Score, ii.Count, ii.Last.Comments)
 
 			if chart == "" {
-				fmt.Fprintf(body, "<td><img src=\"/chart?id=%s&size=short\"></td>", ii.Id)
+				fmt.Fprintf(body, "<td><img style=\"height: 107px;\" src=\"/chart?id=%s&size=short\"></td>",
+					ii.Id)
 			}
 
 			fmt.Fprintf(body, "</tr>\n")
@@ -190,48 +190,30 @@ func RunServer(config *Config) {
 		}
 		fmt.Fprintln(body, "</table>")
 
-		fmt.Fprintln(body, "<div class=\"paging\">")
-		if page > 1 {
-			params := url.Values{}
-			params.Add("pg", "1")
-			if cat != "" {
-				params.Add("category", cat)
-			}
-			fmt.Fprintf(body, "<a href=\"/?%s\">First</a>\n", params.Encode())
+		pageparams := url.Values{}
+		if cat != "" {
+			pageparams.Add("category", cat)
 		}
 		if page > 1 {
-			params := url.Values{}
-			params.Add("pg", strconv.Itoa(page-1))
-			if cat != "" {
-				params.Add("category", cat)
-			}
-			fmt.Fprintf(body, "<a href=\"/?%s\">Previous</a>\n", params.Encode())
+			pageparams.Set("pg", "1")
+			tmpldata["page_first"] = fmt.Sprintf("/?%s", pageparams.Encode())
 		}
-		fmt.Fprintf(body, "<div>Page %d</div>\n", page)
-
+		if page > 1 {
+			pageparams.Set("pg", strconv.Itoa(page-1))
+			tmpldata["page_prev"] = fmt.Sprintf("/?%s", pageparams.Encode())
+		}
 		if len(d) > 0 && page < pagecount {
-			params := url.Values{}
-			params.Add("pg", strconv.Itoa(page+1))
-			if cat != "" {
-				params.Add("category", cat)
-			}
-			fmt.Fprintf(body, "<a href=\"/?%s\">Next</a>\n", params.Encode())
+			pageparams.Set("pg", strconv.Itoa(page+1))
+			tmpldata["page_next"] = fmt.Sprintf("/?%s", pageparams.Encode())
 		}
 		if page != pagecount {
-			params := url.Values{}
-			params.Add("pg", strconv.Itoa(pagecount))
-			if cat != "" {
-				params.Add("category", cat)
-			}
-			fmt.Fprintf(body, "<a href=\"/?%s\">Last</a>\n", params.Encode())
+			pageparams.Set("pg", strconv.Itoa(pagecount))
+			tmpldata["page_last"] = fmt.Sprintf("/?%s", pageparams.Encode())
 		}
-		fmt.Fprintln(body, "</div>")
 
 		tmpl := LoadTemplates("index")
-		tmpldata := map[string]interface{}{
-			"Title": config.Title,
-			"Body":  template.HTML(body.String()),
-		}
+		tmpldata["Body"] = template.HTML(body.String())
+
 		err = tmpl.ExecuteTemplate(w, "index", tmpldata)
 		if err != nil {
 			http.Error(w, "Error processing template", 500)
@@ -324,12 +306,12 @@ func RunServer(config *Config) {
 
 		fmt.Fprintln(body, "</table>")
 
-		tmpl := LoadTemplates("index")
+		tmpl := LoadTemplates("base")
 		tmpldata := map[string]interface{}{
 			"Title": config.Title,
 			"Body":  template.HTML(body.String()),
 		}
-		err = tmpl.ExecuteTemplate(w, "index", tmpldata)
+		err = tmpl.ExecuteTemplate(w, "base", tmpldata)
 		if err != nil {
 			http.Error(w, "Error processing template", 500)
 			return
