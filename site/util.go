@@ -61,3 +61,20 @@ func FormatAddDate(date string) string {
 
 	//return fmt.Sprintf("%dY %dM %dD %dH", int32(years), int32(months), int32(days), int32(hours))
 }
+
+func StyleAddDate(date string) string {
+	if date == "" {
+		return date
+	}
+
+	ad, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return date
+	}
+
+	add := time.Now().Sub(ad)
+	if add.Hours() < 720 {
+		return "color: #00c000;"
+	}
+	return ""
+}

@@ -173,9 +173,10 @@ func RunServer(config *Config) {
 
 		for _, ii := range d {
 			fmt.Fprintf(body, "<tr><td><a href=\"%s\">%s</a> <a href=\"/view?id=%s\">[data]</a> <a href=\"/chart?id=%s\">[chart]</a></td>"+
-				"<td align=\"center\">%s</td>"+
+				"<td align=\"center\" style=\"%s\">%s</td>"+
 				"<td align=\"right\">%d</td><td align=\"center\">%d</td><td align=\"center\">%d</td>\n",
-				ii.Link, ii.Title, ii.Id, ii.Id, FormatAddDate(ii.Last.AddDate), ii.Score, ii.Count, ii.Last.Comments)
+				ii.Link, ii.Title, ii.Id, ii.Id,
+				StyleAddDate(ii.Last.AddDate), FormatAddDate(ii.Last.AddDate), ii.Score, ii.Count, ii.Last.Comments)
 
 			if chart == "" {
 				fmt.Fprintf(body, "<td><img style=\"height: 107px;\" src=\"/chart?id=%s&size=short\"></td>",
