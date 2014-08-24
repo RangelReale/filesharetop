@@ -6,6 +6,7 @@ import (
 
 type ScoreCalculator interface {
 	CalcScore(date string, hour int, current *fstoplib.Item, previous *fstoplib.Item) int32
+	FinishScore(id string, score int32, missed int32, total int32) int32
 }
 
 type DefaultScoreCalculator struct {
@@ -41,5 +42,13 @@ func (c *DefaultScoreCalculator) CalcScore(date string, hour int, current *fstop
 		score += comments * 10
 	}
 
+	return score
+}
+
+func (c *DefaultScoreCalculator) FinishScore(id string, score int32, missed int32, total int32) int32 {
+	if missed > 0 && total > 0 {
+		newscore := float64(score) * (float64(total-missed) / float64(total))
+		score = int32(newscore)
+	}
 	return score
 }

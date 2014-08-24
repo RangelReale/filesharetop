@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/RangelReale/filesharetop/importer"
 	"github.com/RangelReale/filesharetop/info"
-	"github.com/RangelReale/filesharetop/lib"
 	"github.com/pmylund/go-cache"
 	"html/template"
 	"image/color"
@@ -274,24 +273,25 @@ func RunServer(config *Config) {
 
 		fmt.Fprintln(body, "<tr><th>Date</th><th>Hour</th><th>Seeders</th><th>Leechers</th><th>Complete</th><th>Comments</th></tr>")
 
-		var last *fstoplib.Item
+		var last *fstopinfo.FSInfoHistory
 		first := true
 
 		for _, ii := range d {
-			if ii.Item != nil {
-				if first {
-					fmt.Fprintf(body, "<tr><td colspan=\"6\">%s <a href=\"%s\">[goto]</a></td></tr>", strings.TrimSpace(ii.Item.Title), ii.Item.Link)
-					first = false
-				}
+			//if ii.Item != nil {
+			if ii.Item != nil && first {
+				fmt.Fprintf(body, "<tr><td colspan=\"7\">%s <a href=\"%s\">[goto]</a></td></tr>", strings.TrimSpace(ii.Item.Title), ii.Item.Link)
+				first = false
+			}
 
-				if last != nil {
+			if last != nil {
+				if ii.Item != nil && last.Item != nil {
 					//fmt.Printf("%s - [%d] [%d] [%d]\n", item.Title, pi.Seeders-item.Last.Seeders,
 					//pi.Leechers-item.Last.Leechers, pi.Complete-item.Last.Complete)
 
-					seeders := int64(ii.Item.Seeders - last.Seeders)
-					leechers := int64(ii.Item.Leechers - last.Leechers)
-					complete := int64(ii.Item.Complete - last.Complete)
-					comments := int64(ii.Item.Comments - last.Comments)
+					seeders := int64(ii.Item.Seeders - last.Item.Seeders)
+					leechers := int64(ii.Item.Leechers - last.Item.Leechers)
+					complete := int64(ii.Item.Complete - last.Item.Complete)
+					comments := int64(ii.Item.Comments - last.Item.Comments)
 
 					fmt.Fprintf(body, "<tr><td>%s</td><td>%d</td><td>%d (%d)</td><td>%d (%d)</td><td>%d (%d)</td><td>%d (%d)</td></tr>",
 						ii.Date, ii.Hour,
@@ -299,10 +299,21 @@ func RunServer(config *Config) {
 						ii.Item.Leechers, leechers,
 						ii.Item.Complete, complete,
 						ii.Item.Comments, comments)
+				} else if ii.Item != nil && last.Item == nil {
+					fmt.Fprintf(body, "<tr><td>%s</td><td>%d</td><td>%d (-)</td><td>%d (-)</td><td>%d (-)</td><td>%d (-)</td></tr>",
+						ii.Date, ii.Hour,
+						ii.Item.Seeders,
+						ii.Item.Leechers,
+						ii.Item.Complete,
+						ii.Item.Comments)
+				} else {
+					fmt.Fprintf(body, "<tr><td>%s</td><td>%d</td></tr>",
+						ii.Date, ii.Hour)
 				}
-
-				last = ii.Item
 			}
+
+			last = ii
+			//}
 		}
 
 		fmt.Fprintln(body, "</table>")
@@ -380,7 +391,7 @@ func RunServer(config *Config) {
 		c_complete := make(plotter.XYs, 0)
 		c_comments := make(plotter.XYs, 0)
 
-		var last *fstoplib.Item
+		var last *fstopinfo.FSInfoHistory
 		first := true
 		cttotal := int32(0)
 
@@ -393,14 +404,14 @@ func RunServer(config *Config) {
 					first = false
 				}
 
-				if last != nil {
+				if last != nil && last.Item != nil {
 					c_seeders = append(c_seeders, struct{ X, Y float64 }{float64(cttotal), float64(ii.Item.Seeders)})
 					c_leechers = append(c_leechers, struct{ X, Y float64 }{float64(cttotal), float64(ii.Item.Leechers)})
-					c_complete = append(c_complete, struct{ X, Y float64 }{float64(cttotal), float64(ii.Item.Complete - last.Complete)})
+					c_complete = append(c_complete, struct{ X, Y float64 }{float64(cttotal), float64(ii.Item.Complete - last.Item.Complete)})
 					c_comments = append(c_comments, struct{ X, Y float64 }{float64(cttotal), float64(ii.Item.Comments)})
 				}
 
-				last = ii.Item
+				last = ii
 			}
 		}
 

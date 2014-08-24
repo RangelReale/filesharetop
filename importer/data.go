@@ -27,12 +27,13 @@ func (c *FSSTopCategory) IsContained(category string) bool {
 }
 
 type FSTopStats struct {
-	Id       string `bson:"id"`
-	Title    string `bson:"title"`
-	Link     string `bson:"link"`
-	Category string `bson:"category"`
-	Count    int32  `bson:"count"`
-	Score    int32  `bson:"score"`
+	Id               string `bson:"id"`
+	Title            string `bson:"title"`
+	Link             string `bson:"link"`
+	Category         string `bson:"category"`
+	Count            int32  `bson:"count"`
+	Score            int32  `bson:"score"`
+	FirstAppearCount int32  `bson:"-"`
 
 	Last *fstoplib.Item `bson:"last"`
 }

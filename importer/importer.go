@@ -122,10 +122,11 @@ func (i *Importer) Consolidate(id string, hours int) error {
 
 			if item, ok = items[pi.Id]; !ok {
 				item = &FSTopStats{
-					Id:       pi.Id,
-					Title:    strings.TrimSpace(pi.Title),
-					Link:     pi.Link,
-					Category: pi.Category,
+					Id:               pi.Id,
+					Title:            strings.TrimSpace(pi.Title),
+					Link:             pi.Link,
+					Category:         pi.Category,
+					FirstAppearCount: cttotal,
 				}
 				items[pi.Id] = item
 			}
@@ -154,6 +155,8 @@ func (i *Importer) Consolidate(id string, hours int) error {
 
 	// insert items in current collection
 	for _, ii := range items {
+		ii.Score = i.ScoreCalculator.FinishScore(ii.Id, ii.Score, cttotal-ii.FirstAppearCount+1-ii.Count, cttotal)
+
 		err = ccons.Insert(ii)
 		if err != nil {
 			return err
