@@ -2,14 +2,7 @@ package fstopsite
 
 import (
 	"bytes"
-	"code.google.com/p/plotinum/plot"
-	"code.google.com/p/plotinum/plotter"
-	"code.google.com/p/plotinum/vg"
-	"code.google.com/p/plotinum/vg/vgimg"
 	"fmt"
-	"github.com/RangelReale/filesharetop/importer"
-	"github.com/RangelReale/filesharetop/info"
-	"github.com/pmylund/go-cache"
 	"html/template"
 	"image/color"
 	"mime"
@@ -19,6 +12,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"code.google.com/p/plotinum/plot"
+	"code.google.com/p/plotinum/plotter"
+	"code.google.com/p/plotinum/vg"
+	"code.google.com/p/plotinum/vg/vgimg"
+	"github.com/RangelReale/filesharetop/importer"
+	"github.com/RangelReale/filesharetop/info"
+	"github.com/pmylund/go-cache"
 )
 
 func RunServer(config *Config) {
@@ -168,19 +169,21 @@ func RunServer(config *Config) {
 
 		fmt.Fprintln(body, "<table class=\"main\">")
 
-		fmt.Fprintln(body, "<tr><th>Title</th><th width=\"8%\">Added</th><th width=\"5%\">Score</th><th width=\"5%\">Count</th><th width=\"5%\">Comm.</th></tr>")
+		fmt.Fprintln(body, "<tr><th>Chart</th><th>Title</th><th width=\"8%\">Added</th><th width=\"5%\">Score</th><th width=\"5%\">Count</th><th width=\"5%\">Comm.</th></tr>")
 
 		for _, ii := range d {
-			fmt.Fprintf(body, "<tr><td><a href=\"%s\">%s</a> <a href=\"/view?id=%s\">[data]</a> <a href=\"/chart?id=%s\">[chart]</a></td>"+
-				"<td align=\"center\" style=\"%s\">%s</td>"+
-				"<td align=\"right\">%d</td><td align=\"center\">%d</td><td align=\"center\">%d</td>\n",
-				ii.Link, ii.Title, ii.Id, ii.Id,
-				StyleAddDate(ii.Last.AddDate), FormatAddDate(ii.Last.AddDate), ii.Score, ii.Count, ii.Last.Comments)
+			fmt.Fprintf(body, "<tr>\n")
 
 			if chart == "" {
 				fmt.Fprintf(body, "<td><img style=\"height: 107px;\" src=\"/chart?id=%s&size=short\"></td>",
 					ii.Id)
 			}
+
+			fmt.Fprintf(body, "<td><a href=\"%s\">%s</a> <a href=\"/view?id=%s\">[data]</a> <a href=\"/chart?id=%s\">[chart]</a></td>"+
+				"<td align=\"center\" style=\"%s\">%s</td>"+
+				"<td align=\"right\">%d</td><td align=\"center\">%d</td><td align=\"center\">%d</td>\n",
+				ii.Link, ii.Title, ii.Id, ii.Id,
+				StyleAddDate(ii.Last.AddDate), FormatAddDate(ii.Last.AddDate), ii.Score, ii.Count, ii.Last.Comments)
 
 			fmt.Fprintf(body, "</tr>\n")
 
